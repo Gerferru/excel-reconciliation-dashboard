@@ -1,0 +1,14 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Entorno local y credenciales privadas
+.env
+
+# Archivos temporales de sistema
+.DS_Store
+Thumbs.db

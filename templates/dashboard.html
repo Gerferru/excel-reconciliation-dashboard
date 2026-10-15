@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Reconciler & Auditor Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- Barra de Navegación -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-100">
+          <i class="fa-solid fa-file-excel"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Excel Reconciler & Auditor</h1>
+          <p class="text-xs text-slate-500">Conciliación automatizada y alertas inteligentes</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+          Sistema Listo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Formulario de Carga y Configuración -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-600"></i>
+          Configurar Archivos para Conciliación
+        </h2>
+        <p class="text-sm text-slate-500">Sube dos tablas de Excel (.xlsx, .xls) y define las claves primarias para el cruce.</p>
+      </div>
+
+      <form id="reconcileForm" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Archivo A -->
+          <div class="border-2 border-dashed border-slate-200 rounded-xl p-5 hover:border-indigo-400 transition bg-slate-50/50">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">Tabla A (Origen)</span>
+              <span id="fileAStatus" class="text-xs text-slate-400">Sin archivo</span>
+            </div>
+            <input type="file" id="fileA" accept=".xlsx,.xls" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer mb-3" required />
+            
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Columna Clave (ID en Tabla A):</label>
+              <input type="text" id="keyA" placeholder="Ej: ID, Codigo, SKU" value="ID" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" required />
+            </div>
+          </div>
+
+          <!-- Archivo B -->
+          <div class="border-2 border-dashed border-slate-200 rounded-xl p-5 hover:border-indigo-400 transition bg-slate-50/50">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2.5 py-1 rounded-md">Tabla B (Destino / Comparar)</span>
+              <span id="fileBStatus" class="text-xs text-slate-400">Sin archivo</span>
+            </div>
+            <input type="file" id="fileB" accept=".xlsx,.xls" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer mb-3" required />
+            
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Columna Clave (ID en Tabla B):</label>
+              <input type="text" id="keyB" placeholder="Ej: ID, Codigo, SKU" value="ID" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none" required />
+            </div>
+          </div>
+
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+          <label class="inline-flex items-center cursor-pointer text-sm font-medium text-slate-700">
+            <input type="checkbox" id="sendEmail" checked class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+            <span class="ml-2.5 flex items-center gap-1.5">
+              <i class="fa-regular fa-envelope text-slate-400"></i>
+              Enviar alerta por correo automáticamente si existen discrepancias
+            </span>
+          </label>
+
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <button type="button" id="loadSampleBtn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition">
+              <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+              <span>Cargar Ejemplo Demo</span>
+            </button>
+            <button type="submit" id="submitBtn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-100 transition">
+              <i class="fa-solid fa-play"></i>
+              <span>Ejecutar Conciliación</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Indicador de Carga -->
+    <div id="loadingIndicator" class="hidden text-center py-12">
+      <div class="inline-block animate-spin text-indigo-600 text-3xl mb-3">
+        <i class="fa-solid fa-circle-notch"></i>
+      </div>
+      <p class="text-sm font-medium text-slate-600">Procesando y cruzando tablas de datos...</p>
+    </div>
+
+    <!-- Sección de Resultados (Inicialmente oculta) -->
+    <div id="resultsSection" class="hidden space-y-8">
+
+      <!-- Notificación de Alerta de Correo -->
+      <div id="emailNotice" class="hidden p-4 rounded-xl border flex items-center justify-between"></div>
+
+      <!-- Tarjetas de Métricas (KPIs) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div id="kpiMatchIcon" class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold bg-emerald-50 text-emerald-600">
+            <i class="fa-solid fa-percent"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">% Coincidencia</p>
+            <h3 id="kpiMatchRate" class="text-2xl font-black text-slate-900">0%</h3>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Claves</p>
+            <h3 id="kpiTotalKeys" class="text-2xl font-black text-slate-900">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Conciliados 100%</p>
+            <h3 id="kpiFullyMatched" class="text-2xl font-black text-slate-900">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Discrepancias</p>
+            <h3 id="kpiTotalDiscrepancies" class="text-2xl font-black text-rose-600">0</h3>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Gráficos de Auditoría -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-indigo-500"></i>
+            Proporción de Estado de Auditoría
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="donutChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-indigo-500"></i>
+            Desglose de Desacuerdos por Categoría
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tabla Detallada de Discrepancias -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-table-list text-indigo-600"></i>
+              Detalle de Discrepancias y Desacuerdos
+            </h3>
+            <p class="text-xs text-slate-500">Explora cada registro con diferencias entre ambas tablas.</p>
+          </div>
+
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="relative w-full sm:w-64">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+              <input type="text" id="searchInput" placeholder="Buscar clave o columna..." class="w-full text-xs pl-8 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <select id="typeFilter" class="text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="ALL">Todas las discrepancias</option>
+              <option value="VALUE_MISMATCH">Diferencia de Valor</option>
+              <option value="MISSING_IN_B">Faltante en B</option>
+              <option value="MISSING_IN_A">Faltante en A</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="px-6 py-3 font-semibold">Clave / ID</th>
+                <th class="px-6 py-3 font-semibold">Tipo</th>
+                <th class="px-6 py-3 font-semibold">Columna</th>
+                <th class="px-6 py-3 font-semibold">Valor Tabla A</th>
+                <th class="px-6 py-3 font-semibold">Valor Tabla B</th>
+                <th class="px-6 py-3 font-semibold">Descripción</th>
+              </tr>
+            </thead>
+            <tbody id="discrepanciesTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Filas generadas dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="emptyTableMessage" class="hidden text-center py-12 text-slate-500 text-sm">
+          No hay discrepancias que coincidan con el filtro seleccionado.
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    let currentDiscrepancies = [];
+    let donutChartInstance = null;
+    let barChartInstance = null;
+
+    document.getElementById('loadSampleBtn').addEventListener('click', async () => {
+      document.getElementById('loadingIndicator').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+      document.getElementById('keyA').value = 'ID_Factura';
+      document.getElementById('keyB').value = 'ID_Factura';
+      document.getElementById('fileAStatus').textContent = 'tabla_a.xlsx (Demo)';
+      document.getElementById('fileBStatus').textContent = 'tabla_b.xlsx (Demo)';
+
+      try {
+        const sendEmail = document.getElementById('sendEmail').checked;
+        const res = await fetch(`/api/reconcile-sample?send_email=${sendEmail}`);
+        if (!res.ok) throw new Error('Error al cargar datos demo');
+        const data = await res.json();
+        renderResults(data);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+      }
+    });
+
+    document.getElementById('reconcileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const fileA = document.getElementById('fileA').files[0];
+      const fileB = document.getElementById('fileB').files[0];
+      const keyA = document.getElementById('keyA').value;
+      const keyB = document.getElementById('keyB').value;
+      const sendEmail = document.getElementById('sendEmail').checked;
+
+      if (!fileA || !fileB) {
+        alert('Por favor selecciona ambos archivos de Excel.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file_a', fileA);
+      formData.append('file_b', fileB);
+      formData.append('key_a', keyA);
+      formData.append('key_b', keyB);
+      formData.append('send_email', sendEmail);
+
+      document.getElementById('loadingIndicator').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/reconcile', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || 'Error al ejecutar conciliación');
+        }
+
+        const data = await response.json();
+        renderResults(data);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+      }
+    });
+
+    function renderResults(data) {
+      document.getElementById('resultsSection').classList.remove('hidden');
+      currentDiscrepancies = data.discrepancies || [];
+
+      // KPIs
+      document.getElementById('kpiMatchRate').textContent = data.match_percentage + '%';
+      document.getElementById('kpiTotalKeys').textContent = data.total_unique_keys;
+      document.getElementById('kpiFullyMatched').textContent = data.fully_matched_count;
+      document.getElementById('kpiTotalDiscrepancies').textContent = data.total_discrepancies;
+
+      // Email Notice
+      const emailNotice = document.getElementById('emailNotice');
+      if (data.email_status && data.email_status.alert_triggered) {
+        emailNotice.className = 'p-4 rounded-xl border flex items-center justify-between ' + 
+          (data.email_status.success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800');
+        const previewBtn = data.email_status.preview_url
+          ? `<a href="${data.email_status.preview_url}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-current rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition shrink-0">
+               <i class="fa-solid fa-eye"></i> Previsualizar Correo
+             </a>`
+          : '';
+
+        emailNotice.innerHTML = `
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-paper-plane text-base shrink-0"></i>
+            <span class="text-sm font-medium">${data.email_status.message}</span>
+          </div>
+          ${previewBtn}
+        `;
+        emailNotice.classList.remove('hidden');
+      } else {
+        emailNotice.classList.add('hidden');
+      }
+
+      // Charts
+      renderDonutChart(data);
+      renderBarChart(data);
+
+      // Tabla
+      renderTable();
+    }
+
+    function renderDonutChart(data) {
+      const ctx = document.getElementById('donutChart').getContext('2d');
+      if (donutChartInstance) donutChartInstance.destroy();
+
+      donutChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Conciliados 100%', 'Diferencia de Valor', 'Faltante en B', 'Faltante en A'],
+          datasets: [{
+            data: [
+              data.fully_matched_count,
+              data.value_mismatch_count,
+              data.missing_in_b_count,
+              data.missing_in_a_count
+            ],
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+    }
+
+    function renderBarChart(data) {
+      const ctx = document.getElementById('barChart').getContext('2d');
+      if (barChartInstance) barChartInstance.destroy();
+
+      barChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Diferencia Valor', 'Faltante en B', 'Faltante en A'],
+          datasets: [{
+            label: 'Cantidad',
+            data: [data.value_mismatch_count, data.missing_in_b_count, data.missing_in_a_count],
+            backgroundColor: ['#f59e0b', '#ef4444', '#8b5cf6'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('discrepanciesTableBody');
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const typeFilter = document.getElementById('typeFilter').value;
+
+      const filtered = currentDiscrepancies.filter(item => {
+        const matchesSearch = item.key.toLowerCase().includes(searchTerm) || 
+                              item.column.toLowerCase().includes(searchTerm) ||
+                              item.description.toLowerCase().includes(searchTerm);
+        const matchesType = (typeFilter === 'ALL' || item.type === typeFilter);
+        return matchesSearch && matchesType;
+      });
+
+      tbody.innerHTML = '';
+      const emptyMsg = document.getElementById('emptyTableMessage');
+
+      if (filtered.length === 0) {
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+      emptyMsg.classList.add('hidden');
+
+      filtered.forEach(item => {
+        let badgeClass = 'bg-slate-100 text-slate-700';
+        if (item.type === 'VALUE_MISMATCH') badgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
+        if (item.type === 'MISSING_IN_B') badgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+        if (item.type === 'MISSING_IN_A') badgeClass = 'bg-purple-100 text-purple-800 border border-purple-200';
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50 transition';
+        row.innerHTML = `
+          <td class="px-6 py-4 font-semibold text-slate-900">${item.key}</td>
+          <td class="px-6 py-4">
+            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}">
+              ${item.type}
+            </span>
+          </td>
+          <td class="px-6 py-4 font-mono text-xs text-slate-600">${item.column}</td>
+          <td class="px-6 py-4 font-medium text-slate-800">${item.value_a}</td>
+          <td class="px-6 py-4 font-medium text-slate-800">${item.value_b}</td>
+          <td class="px-6 py-4 text-xs text-slate-500">${item.description}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('typeFilter').addEventListener('change', renderTable);
+  </script>
+
+</body>
+</html>
