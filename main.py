@@ -115,10 +115,18 @@ async def reconcile_endpoint(
 
 @app.get("/api/reconcile-sample")
 async def reconcile_sample(send_email: bool = False):
-    """Ejecuta la conciliación con los archivos de muestra pregenerados."""
-    sample_dir = BASE_DIR / "sample_data"
-    path_a = sample_dir / "tabla_a.xlsx"
-    path_b = sample_dir / "tabla_b.xlsx"
+    """Ejecuta la conciliación con el dataset empresarial enriquecido."""
+    ejemplos_dir = BASE_DIR / "ejemplos_excel"
+    path_a = ejemplos_dir / "Dataset_Empresarial_ERP_Tabla_A.xlsx"
+    path_b = ejemplos_dir / "Dataset_Empresarial_Banco_Tabla_B.xlsx"
+
+    if path_a.exists() and path_b.exists():
+        key = "ID_Transaccion"
+    else:
+        sample_dir = BASE_DIR / "sample_data"
+        path_a = sample_dir / "tabla_a.xlsx"
+        path_b = sample_dir / "tabla_b.xlsx"
+        key = "ID_Factura"
 
     if not (path_a.exists() and path_b.exists()):
         raise HTTPException(status_code=404, detail="Archivos de muestra no encontrados.")
@@ -126,7 +134,7 @@ async def reconcile_sample(send_email: bool = False):
     df_a = load_excel(path_a)
     df_b = load_excel(path_b)
 
-    result = reconcile_tables(df_a, df_b, key_a="ID_Factura", key_b="ID_Factura")
+    result = reconcile_tables(df_a, df_b, key_a=key, key_b=key)
 
     email_status = None
     if send_email and result.has_discrepancies:

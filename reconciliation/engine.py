@@ -37,6 +37,8 @@ class ReconciliationResult:
     has_discrepancies: bool
     compared_columns: list[str]
     discrepancies: list[DiscrepancyItem] = field(default_factory=list)
+    discrepancies_by_column: dict[str, int] = field(default_factory=dict)
+    financial_impact: float = 0.0
 
     @property
     def total_discrepancies(self) -> int:
@@ -55,6 +57,8 @@ class ReconciliationResult:
             "match_percentage": round(self.match_percentage, 2),
             "has_discrepancies": self.has_discrepancies,
             "compared_columns": self.compared_columns,
+            "discrepancies_by_column": self.discrepancies_by_column,
+            "financial_impact": round(self.financial_impact, 2),
             "discrepancies": [d.to_dict() for d in self.discrepancies],
         }
 
@@ -125,10 +129,15 @@ def reconcile_tables(
     )
 
     discrepancies: list[DiscrepancyItem] = []
+    discrepancies_by_column: dict[str, int] = {}
+    financial_impact: float = 0.0
     missing_in_b = 0
     missing_in_a = 0
     value_mismatches = 0
     fully_matched_keys = set()
+
+    # Identificar posibles columnas monetarias
+    amount_cols = [c for c in valid_cols if any(term in c.lower() for term in ("importe", "monto", "total", "precio", "base"))]
 
     for _, row in merged.iterrows():
         key_val = row["_KEY_"]
@@ -136,6 +145,13 @@ def reconcile_tables(
 
         if merge_status == "left_only":
             missing_in_b += 1
+            for ac in amount_cols:
+                try:
+                    val = float(row.get(f"{ac}_A", 0))
+                    if not pd.isna(val):
+                        financial_impact += abs(val)
+                except (ValueError, TypeError):
+                    pass
             discrepancies.append(
                 DiscrepancyItem(
                     key=key_val,
@@ -145,6 +161,13 @@ def reconcile_tables(
             )
         elif merge_status == "right_only":
             missing_in_a += 1
+            for ac in amount_cols:
+                try:
+                    val = float(row.get(f"{ac}_B", 0))
+                    if not pd.isna(val):
+                        financial_impact += abs(val)
+                except (ValueError, TypeError):
+                    pass
             discrepancies.append(
                 DiscrepancyItem(
                     key=key_val,
@@ -162,6 +185,17 @@ def reconcile_tables(
                 if not _are_values_equal(val_a, val_b, tolerance):
                     row_has_mismatch = True
                     value_mismatches += 1
+                    discrepancies_by_column[col] = discrepancies_by_column.get(col, 0) + 1
+
+                    # Impacto financiero si es columna de importe
+                    try:
+                        num_a = float(val_a)
+                        num_b = float(val_b)
+                        if not (pd.isna(num_a) or pd.isna(num_b)):
+                            financial_impact += abs(num_a - num_b)
+                    except (ValueError, TypeError):
+                        pass
+
                     discrepancies.append(
                         DiscrepancyItem(
                             key=key_val,
@@ -197,4 +231,6 @@ def reconcile_tables(
         has_discrepancies=has_discrepancies,
         compared_columns=valid_cols,
         discrepancies=discrepancies,
+        discrepancies_by_column=discrepancies_by_column,
+        financial_impact=financial_impact,
     )
